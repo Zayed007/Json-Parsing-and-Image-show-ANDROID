@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.Toast;
 
 import com.squareup.picasso.Picasso;
 
@@ -21,8 +22,8 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<UsersDetails>usersDetailsArrayList;
     private ListView userLV;
     private UserListAdapter userListAdapter;
+    private NetworkAccess networkAccess;
     private ProgressDialog mProgress;
-    private ImageView imageView;
     private final String IMAG_URL="https://randomuser.me/api/portraits/";
 
     @Override
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
         apiInterface = APIUser.getUser().create(APIInterface.class);
         usersDetailsArrayList=new ArrayList<>();
         userLV=findViewById(R.id.LV_userDetailsShow);
+        networkAccess=new NetworkAccess(MainActivity.this);
 
         //############################ showing PROGRESS BAR ######################################
         mProgress = new ProgressDialog(MainActivity.this);
@@ -43,68 +45,48 @@ public class MainActivity extends AppCompatActivity {
         /**
          Parsing Json
          **/
-        mProgress.show();
-        Call<JsonResponse> call = apiInterface.doGetUserDetails();
-        call.enqueue(new Callback<JsonResponse>() {
-            @Override
-            public void onResponse(Call<JsonResponse> call, Response<JsonResponse> response) {
-                Log.d("Response TAG",response.code()+"");
+        if(networkAccess.haveNetworkConnection()) {
+            mProgress.show();
+            Call<JsonResponse> call = apiInterface.doGetUserDetails();
+            call.enqueue(new Callback<JsonResponse>() {
+                @Override
+                public void onResponse(Call<JsonResponse> call, Response<JsonResponse> response) {
+                    Log.d("Response TAG", response.code() + "");
 
-                if(response.code() == 200) {
-                    JsonResponse resource = response.body();
-                    for (int i = 0; i < resource.getUsers().size(); i++) {
-                        int id = resource.getUsers().get(i).getId();
-                        String firstName = resource.getUsers().get(i).getFirstName();
-                        String lastName = resource.getUsers().get(i).getLastName();
-                        String mobile = resource.getUsers().get(i).getPhones().getMobile();
-                        String gender = resource.getUsers().get(i).getGender();
-                        int photo = resource.getUsers().get(i).getPhoto();
-                        String url;
-                        if(gender.equals("female"))
-                        {
-                            url=IMAG_URL+"women"+"/"+String.valueOf(photo)+".jpg";
+                    if (response.code() == 200) {
+                        JsonResponse resource = response.body();
+                        for (int i = 0; i < resource.getUsers().size(); i++) {
+                            int id = resource.getUsers().get(i).getId();
+                            String firstName = resource.getUsers().get(i).getFirstName();
+                            String lastName = resource.getUsers().get(i).getLastName();
+                            String mobile = resource.getUsers().get(i).getPhones().getMobile();
+                            String gender = resource.getUsers().get(i).getGender();
+                            int photo = resource.getUsers().get(i).getPhoto();
+                            String url;
+                            if (gender.equals("female")) {
+                                url = IMAG_URL + "women" + "/" + String.valueOf(photo) + ".jpg";
+                            } else {
+                                url = IMAG_URL + "men" + "/" + String.valueOf(photo) + ".jpg";
+                            }
+
+
+                            usersDetailsArrayList.add(new UsersDetails(id, firstName, lastName, mobile, gender, photo, url));
                         }
-                        else
-                        {
-                            url=IMAG_URL+"men"+"/"+String.valueOf(photo)+".jpg";
-                        }
-
-
-
-
-                        usersDetailsArrayList.add(new UsersDetails(id,firstName,lastName,mobile,gender,photo,url));
+                        userListAdapter = new UserListAdapter(MainActivity.this, usersDetailsArrayList);
+                        userLV.setAdapter(userListAdapter);
+                        mProgress.dismiss();
                     }
-                    userListAdapter=new UserListAdapter(MainActivity.this,usersDetailsArrayList);
-                    userLV.setAdapter(userListAdapter);
-                    mProgress.dismiss();
                 }
-            }
 
-            @Override
-            public void onFailure(Call<JsonResponse> call, Throwable t) {
-                call.cancel();
-            }
-        });
-
-
-
-
-
+                @Override
+                public void onFailure(Call<JsonResponse> call, Throwable t) {
+                    call.cancel();
+                }
+            });
+        }
+        else {
+            Toast.makeText(MainActivity.this,"Internet Required!",Toast.LENGTH_SHORT).show();
+        }
     }
 
-    void loadImageFromURL(){
-        Picasso.with(this).load("https://randomuser.me/api/portraits/women/41.jpg").placeholder(R.mipmap.ic_launcher)
-                .error(R.mipmap.ic_launcher)
-                .into(imageView, new com.squareup.picasso.Callback() {
-                    @Override
-                    public void onSuccess() {
-
-                    }
-
-                    @Override
-                    public void onError() {
-
-                    }
-                });
-    }
 }
